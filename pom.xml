@@ -10,7 +10,7 @@
 
     <properties>
         <spring.version>4.2.3.RELEASE</spring.version>
-        <spring.data.version>1.10.4.RELEASE</spring.data.version>
+        <spring.data.version>3.3.5</spring.data.version>
     </properties>
 
     <repositories>
