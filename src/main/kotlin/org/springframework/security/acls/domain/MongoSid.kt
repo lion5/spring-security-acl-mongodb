@@ -13,26 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.security.acls.mongodb;
-
-import java.util.UUID;
+package org.springframework.security.acls.domain
 
 /**
- * Simple domain object used for testing ACLs.
+ * Represents a security identity assignable to certain permissions in an access control list. The identity can either
+ * be a user principal or a granted authority. If {@link #isPrincipal} returns true, the security identity represents an
+ * authenticated user, otherwise an instance of this class will represent a granted authority.
  *
  * @author Roman Vottner
  * @since 4.3
  */
-class TestDomainObject {
-
-	private final String id = UUID.randomUUID().toString();
-
-	/**
-	 * Returns the unique ID in the form of a UUID v4.
-	 *
-	 * @return the unique ID of this object
-	 */
-	String getId() {
-		return this.id;
-	}
-}
+class MongoSid
+    @JvmOverloads
+    constructor(
+        var name: String = "",
+        var isPrincipal: Boolean = true,
+    ) {
+        override fun toString(): String = "MongoSid[name = $name, isPrincipal = $isPrincipal]"
+    }
