@@ -20,7 +20,6 @@ import org.springframework.data.mongodb.core.index.CompoundIndex
 import org.springframework.data.mongodb.core.index.CompoundIndexes
 import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
-import org.springframework.security.acls.model.Acl
 import org.springframework.security.core.context.SecurityContextHolder
 import java.io.Serializable
 import java.util.ArrayList

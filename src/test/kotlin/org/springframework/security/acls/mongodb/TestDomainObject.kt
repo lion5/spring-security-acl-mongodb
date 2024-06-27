@@ -32,7 +32,5 @@ class TestDomainObject {
      *
      * @return the unique ID of this object
      */
-    fun getId(): String {
-        return id
-    }
+    fun getId(): String = id
 }

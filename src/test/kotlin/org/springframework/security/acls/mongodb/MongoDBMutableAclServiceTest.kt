@@ -30,9 +30,22 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories
 import org.springframework.security.acls.dao.AclRepository
-import org.springframework.security.acls.domain.*
+import org.springframework.security.acls.domain.AclAuthorizationStrategy
+import org.springframework.security.acls.domain.AclAuthorizationStrategyImpl
+import org.springframework.security.acls.domain.BasePermission
+import org.springframework.security.acls.domain.ConsoleAuditLogger
+import org.springframework.security.acls.domain.DefaultPermissionGrantingStrategy
+import org.springframework.security.acls.domain.DomainObjectPermission
+import org.springframework.security.acls.domain.MongoAcl
+import org.springframework.security.acls.domain.MongoSid
+import org.springframework.security.acls.domain.ObjectIdentityImpl
+import org.springframework.security.acls.domain.PrincipalSid
+import org.springframework.security.acls.domain.SpringCacheBasedAclCache
 import org.springframework.security.acls.jdbc.LookupStrategy
-import org.springframework.security.acls.model.*
+import org.springframework.security.acls.model.AclCache
+import org.springframework.security.acls.model.ChildrenExistException
+import org.springframework.security.acls.model.MutableAcl
+import org.springframework.security.acls.model.PermissionGrantingStrategy
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.test.context.support.WithMockUser
@@ -40,7 +53,7 @@ import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.junit.jupiter.SpringExtension
 import org.testcontainers.containers.MongoDBContainer
 import java.net.UnknownHostException
-import java.util.*
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -50,19 +63,15 @@ import kotlin.test.fail
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [MongoDBMutableAclServiceTest.ContextConfig::class])
 class MongoDBMutableAclServiceTest {
-
-
-
     @ComponentScan(basePackageClasses = [AclRepository::class])
     @Configuration
     @ImportTestcontainers
     @EnableMongoRepositories(basePackageClasses = [AclRepository::class])
     class ContextConfig {
-
         companion object {
             @ServiceConnection
             @JvmStatic
-            val mongoDBContainer = MongoDBContainer("mongo:7.0.11");
+            val mongoDBContainer = MongoDBContainer("mongo:7.0.11")
         }
 
         @Autowired
@@ -76,14 +85,19 @@ class MongoDBMutableAclServiceTest {
         }
 
         @Bean
-        fun aclAuthorizationStrategy(): AclAuthorizationStrategy = AclAuthorizationStrategyImpl(SimpleGrantedAuthority("ROLE_ADMINISTRATOR"))
+        fun aclAuthorizationStrategy(): AclAuthorizationStrategy =
+            AclAuthorizationStrategyImpl(SimpleGrantedAuthority("ROLE_ADMINISTRATOR"))
 
         @Bean
-        fun permissionGrantingStrategy(): PermissionGrantingStrategy = DefaultPermissionGrantingStrategy(ConsoleAuditLogger())
+        fun permissionGrantingStrategy(): PermissionGrantingStrategy =
+            DefaultPermissionGrantingStrategy(
+                ConsoleAuditLogger(),
+            )
 
         @Bean
         @Throws(UnknownHostException::class)
-        fun lookupStrategy(): LookupStrategy = MongoDBBasicLookupStrategy(mongoTemplate(), aclCache(), aclAuthorizationStrategy(), permissionGrantingStrategy())
+        fun lookupStrategy(): LookupStrategy =
+            MongoDBBasicLookupStrategy(mongoTemplate(), aclCache(), aclAuthorizationStrategy(), permissionGrantingStrategy())
 
         @Bean
         fun cacheManager(): CacheManager = ConcurrentMapCacheManager("test")
@@ -101,6 +115,7 @@ class MongoDBMutableAclServiceTest {
 
     @Autowired
     lateinit var aclService: MongoDBMutableAclService
+
     @Autowired
     lateinit var aclRepository: AclRepository
 
@@ -132,13 +147,24 @@ class MongoDBMutableAclServiceTest {
         // Arrange
         val domainObject = TestDomainObject()
         val objectIdentity = ObjectIdentityImpl(domainObject::class.java.name, domainObject.getId())
-        val mongoAcl = MongoAcl(domainObject.getId(), domainObject::class.java.name,
-            UUID.randomUUID().toString(), MongoSid(SecurityContextHolder.getContext().authentication.name),
-            null, true)
-        val permission = DomainObjectPermission(UUID.randomUUID().toString(),
-            MongoSid(SecurityContextHolder.getContext().authentication.name),
-            BasePermission.READ.mask or BasePermission.WRITE.mask,
-            true, true, true)
+        val mongoAcl =
+            MongoAcl(
+                domainObject.getId(),
+                domainObject::class.java.name,
+                UUID.randomUUID().toString(),
+                MongoSid(SecurityContextHolder.getContext().authentication.name),
+                null,
+                true,
+            )
+        val permission =
+            DomainObjectPermission(
+                UUID.randomUUID().toString(),
+                MongoSid(SecurityContextHolder.getContext().authentication.name),
+                BasePermission.READ.mask or BasePermission.WRITE.mask,
+                true,
+                true,
+                true,
+            )
         mongoAcl.permissions.add(permission)
         aclRepository.save(mongoAcl)
 
@@ -162,15 +188,37 @@ class MongoDBMutableAclServiceTest {
 
         val objectIdentity = ObjectIdentityImpl(domainObject::class.java.name, domainObject.getId())
         val parent = MongoAcl(domainObject.getId(), domainObject::class.java.name, UUID.randomUUID().toString())
-        val child1 = MongoAcl(firstObject.getId(), firstObject::class.java.name, UUID.randomUUID().toString(), MongoSid("Tim Test"), parent.id, true)
-        val child2 = MongoAcl(secondObject.getId(), secondObject::class.java.name, UUID.randomUUID().toString(), MongoSid("Petty Pattern"), parent.id, true)
-        val child3 = MongoAcl(thirdObject.getId(), thirdObject::class.java.name, UUID.randomUUID().toString(), MongoSid("Sam Sample"), parent.id, true)
+        val child1 =
+            MongoAcl(firstObject.getId(), firstObject::class.java.name, UUID.randomUUID().toString(), MongoSid("Tim Test"), parent.id, true)
+        val child2 =
+            MongoAcl(
+                secondObject.getId(),
+                secondObject::class.java.name,
+                UUID.randomUUID().toString(),
+                MongoSid("Petty Pattern"),
+                parent.id,
+                true,
+            )
+        val child3 =
+            MongoAcl(
+                thirdObject.getId(),
+                thirdObject::class.java.name,
+                UUID.randomUUID().toString(),
+                MongoSid("Sam Sample"),
+                parent.id,
+                true,
+            )
         val nonChild = MongoAcl(unrelatedObject.getId(), unrelatedObject::class.java.name, UUID.randomUUID().toString())
 
-        val permission = DomainObjectPermission(UUID.randomUUID().toString(),
-            MongoSid(SecurityContextHolder.getContext().authentication.name),
-            BasePermission.READ.mask or BasePermission.WRITE.mask,
-            true, true, true)
+        val permission =
+            DomainObjectPermission(
+                UUID.randomUUID().toString(),
+                MongoSid(SecurityContextHolder.getContext().authentication.name),
+                BasePermission.READ.mask or BasePermission.WRITE.mask,
+                true,
+                true,
+                true,
+            )
 
         parent.permissions.add(permission)
         child1.permissions.add(permission)
@@ -204,15 +252,37 @@ class MongoDBMutableAclServiceTest {
 
         val objectIdentity = ObjectIdentityImpl(domainObject::class.java.name, domainObject.getId())
         val parent = MongoAcl(domainObject.getId(), domainObject::class.java.name, UUID.randomUUID().toString())
-        val child1 = MongoAcl(firstObject.getId(), firstObject::class.java.name, UUID.randomUUID().toString(), MongoSid("Tim Test"), parent.id, true)
-        val child2 = MongoAcl(secondObject.getId(), secondObject::class.java.name, UUID.randomUUID().toString(), MongoSid("Petty Pattern"), parent.id, true)
-        val child3 = MongoAcl(thirdObject.getId(), thirdObject::class.java.name, UUID.randomUUID().toString(), MongoSid("Sam Sample"), parent.id, true)
+        val child1 =
+            MongoAcl(firstObject.getId(), firstObject::class.java.name, UUID.randomUUID().toString(), MongoSid("Tim Test"), parent.id, true)
+        val child2 =
+            MongoAcl(
+                secondObject.getId(),
+                secondObject::class.java.name,
+                UUID.randomUUID().toString(),
+                MongoSid("Petty Pattern"),
+                parent.id,
+                true,
+            )
+        val child3 =
+            MongoAcl(
+                thirdObject.getId(),
+                thirdObject::class.java.name,
+                UUID.randomUUID().toString(),
+                MongoSid("Sam Sample"),
+                parent.id,
+                true,
+            )
         val nonChild = MongoAcl(unrelatedObject.getId(), unrelatedObject::class.java.name, UUID.randomUUID().toString())
 
-        val permission = DomainObjectPermission(UUID.randomUUID().toString(),
-            MongoSid(SecurityContextHolder.getContext().authentication.name),
-            BasePermission.READ.mask or BasePermission.WRITE.mask,
-            true, true, true)
+        val permission =
+            DomainObjectPermission(
+                UUID.randomUUID().toString(),
+                MongoSid(SecurityContextHolder.getContext().authentication.name),
+                BasePermission.READ.mask or BasePermission.WRITE.mask,
+                true,
+                true,
+                true,
+            )
 
         parent.permissions.add(permission)
         child1.permissions.add(permission)
@@ -238,13 +308,24 @@ class MongoDBMutableAclServiceTest {
         // Arrange
         val domainObject = TestDomainObject()
         val objectIdentity = ObjectIdentityImpl(domainObject::class.java.name, domainObject.getId())
-        val mongoAcl = MongoAcl(domainObject.getId(), domainObject::class.java.name,
-            UUID.randomUUID().toString(), MongoSid(SecurityContextHolder.getContext().authentication.name),
-            null, true)
-        val permission = DomainObjectPermission(UUID.randomUUID().toString(),
-            MongoSid(SecurityContextHolder.getContext().authentication.name),
-            BasePermission.READ.mask or BasePermission.WRITE.mask,
-            true, true, true)
+        val mongoAcl =
+            MongoAcl(
+                domainObject.getId(),
+                domainObject::class.java.name,
+                UUID.randomUUID().toString(),
+                MongoSid(SecurityContextHolder.getContext().authentication.name),
+                null,
+                true,
+            )
+        val permission =
+            DomainObjectPermission(
+                UUID.randomUUID().toString(),
+                MongoSid(SecurityContextHolder.getContext().authentication.name),
+                BasePermission.READ.mask or BasePermission.WRITE.mask,
+                true,
+                true,
+                true,
+            )
         mongoAcl.permissions.add(permission)
         aclRepository.save(mongoAcl)
 
@@ -263,5 +344,4 @@ class MongoDBMutableAclServiceTest {
         assertTrue(updated.permissions[1].getSid().name == "Sam Sample")
         assertTrue(updated.permissions[1].getSid().isPrincipal)
     }
-
 }
