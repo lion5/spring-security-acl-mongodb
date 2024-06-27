@@ -1,6 +1,9 @@
 package org.springframework.security.acls.mongodb
 
 import com.mongodb.client.MongoClients
+import org.junit.After
+import org.junit.AfterClass
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -8,6 +11,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.testcontainers.context.ImportTestcontainers
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection
 import org.springframework.cache.CacheManager
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager
 import org.springframework.context.annotation.Bean
@@ -37,20 +42,28 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.junit.jupiter.SpringExtension
+import org.testcontainers.containers.MongoDBContainer
 import java.util.UUID
 
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [MongoDBAclServiceTest.ContextConfig::class])
 class MongoDBAclServiceTest {
 
+    @ImportTestcontainers
     @ComponentScan(basePackageClasses = [AclRepository::class])
     @Configuration
     @EnableMongoRepositories(basePackageClasses = [AclRepository::class])
     class ContextConfig {
 
+        companion object {
+            @ServiceConnection
+            @JvmStatic
+            val mongoDBContainer = MongoDBContainer("mongo:7.0.11")
+        }
+
         @Bean
         fun mongoTemplate(): MongoTemplate {
-            val mongoClient = MongoClients.create("mongodb://localhost:27017")
+            val mongoClient = MongoClients.create(mongoDBContainer.connectionString)
             return MongoTemplate(mongoClient, "spring-security-acl-test")
         }
 

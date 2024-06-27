@@ -26,12 +26,14 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
 	implementation("org.springframework.data:spring-data-mongodb")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
+
 	testImplementation("org.springframework.boot:spring-boot-test")
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:mongodb")
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 	testImplementation("org.springframework.security:spring-security-test")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    // Embedded MongoDB used for integration testing
-    testImplementation("de.flapdoodle.embed:de.flapdoodle.embed.mongo:2.0.3")
+
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
 }
 

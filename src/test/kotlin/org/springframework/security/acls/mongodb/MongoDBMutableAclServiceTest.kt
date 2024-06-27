@@ -15,11 +15,12 @@
  */
 package org.springframework.security.acls.mongodb
 
-import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.testcontainers.context.ImportTestcontainers
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection
 import org.springframework.cache.Cache
 import org.springframework.cache.CacheManager
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager
@@ -36,9 +37,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.context.ContextConfiguration
-import org.springframework.test.context.TestExecutionListeners
 import org.springframework.test.context.junit.jupiter.SpringExtension
-import org.springframework.test.context.support.AnnotationConfigContextLoader
+import org.testcontainers.containers.MongoDBContainer
 import java.net.UnknownHostException
 import java.util.*
 import kotlin.test.Test
@@ -48,14 +48,22 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 @ExtendWith(SpringExtension::class)
-@ContextConfiguration(classes = [MongoDBMutableAclServiceTest.ContextConfig::class], loader = AnnotationConfigContextLoader::class)
-@TestExecutionListeners(listeners = [MongoDBTestExecutionListener::class], mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
+@ContextConfiguration(classes = [MongoDBMutableAclServiceTest.ContextConfig::class])
 class MongoDBMutableAclServiceTest {
 
-    @ComponentScan(basePackageClasses = [MongoDBMutableAclService::class])
+
+
+    @ComponentScan(basePackageClasses = [AclRepository::class])
     @Configuration
+    @ImportTestcontainers
     @EnableMongoRepositories(basePackageClasses = [AclRepository::class])
     class ContextConfig {
+
+        companion object {
+            @ServiceConnection
+            @JvmStatic
+            val mongoDBContainer = MongoDBContainer("mongo:7.0.11");
+        }
 
         @Autowired
         lateinit var aclRepository: AclRepository
@@ -63,7 +71,7 @@ class MongoDBMutableAclServiceTest {
         @Bean
         @Throws(UnknownHostException::class)
         fun mongoTemplate(): MongoTemplate {
-            val mongoClient: MongoClient = MongoClients.create("mongodb://localhost:27017")
+            val mongoClient = MongoClients.create(mongoDBContainer.connectionString)
             return MongoTemplate(mongoClient, "spring-security-acl-test")
         }
 
