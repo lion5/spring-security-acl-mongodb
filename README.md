@@ -15,7 +15,7 @@ This Spring Security ACL customization uses MongoDB as a database to look up acc
         "isPrincipal": true
     },
     "inheritPermissions" : true,
-    "permissions" : [ 
+    "permissions" : [
         {
             "_id" : "dbf4dcb0-70f4-48a5-92b0-d4c782af7498",
             "sid" : {
@@ -26,7 +26,7 @@ This Spring Security ACL customization uses MongoDB as a database to look up acc
             "granting" : true,
             "auditFailure" : false,
             "auditSuccess" : false
-        }, 
+        },
         {
             "_id" : "a91b1f25-9c09-4092-a82b-9f773a777f1d",
             "sid" : {
@@ -37,7 +37,7 @@ This Spring Security ACL customization uses MongoDB as a database to look up acc
             "granting" : true,
             "auditFailure" : false,
             "auditSuccess" : false
-        }, 
+        },
         {
             "_id" : "36443e66-2917-4c0e-a04c-405205a9b8d8",
             "sid" : {
@@ -48,7 +48,7 @@ This Spring Security ACL customization uses MongoDB as a database to look up acc
             "granting" : true,
             "auditFailure" : false,
             "auditSuccess" : false
-        }, 
+        },
         {
             "_id" : "758e2530-8ef6-4974-bf2a-2bd54955805b",
             "sid" : {
@@ -72,18 +72,36 @@ This implementation will read (or write) such documents as `MongoAcl` objects fr
 
 Before being able to use Spring Security ACL MongoDB it has to be defined as dependency and configured properly in order to work.
 
-## Dependency Management 
+## Dependency Management
 
 ### Maven
 
 In order to make use of the MongoDB based ACL one has to declare its dependency in Maven like below:
 
+`pom.xml`
 ```xml
+<repositories>
+  <repository>
+    <id>GitHubPackages</id>
+    <url>https://maven.pkg.github.com/lion5/spring-security-acl-mongodb</url>
+  </repository>
+</repositories>
+
 <dependency>
     <groupId>org.springframework.security</groupId>
     <artifactId>spring-security-acl-mongodb</artifactId>
     <version>4.2.3-SNAPSHOT</version>
 </dependency>
+```
+`settings.xml`
+```xml
+<servers>
+    <server>
+        <id>GitHubPackages</id>
+        <username>${env.GITHUB_ACTOR}</username>
+        <password>${env.GITHUB_TOKEN}</password>
+    </server>
+</servers>
 ```
 
 Note that the artifacts are not yet available on Maven Central. So please build the project manually via `mvn clean install` first before declaring the dependencies on this artifact.
@@ -92,13 +110,31 @@ Note that the artifacts are not yet available on Maven Central. So please build 
 
 Via Gradle the dependency can be added by simply adding the following line to the .gradle file:
 
-```groovy
-compile "org.springframework.security:spring-security-acl-mongodb:4.2.3-SNAPSHOT"
+```kotlin
+repositories {
+  maven {
+    name = "GitHubPackages"
+    url = uri("https://maven.pkg.github.com/lion5/spring-security-acl-mongodb") // GitHub Packages URL for your repo
+    credentials {
+      username = System.getenv("GITHUB_ACTOR")
+      password = System.getenv("GITHUB_TOKEN")
+    }
+  }
+}
+
+implementation("org.springframework:spring-security-acl-mongodb-kotlin:0.0.1-SNAPSHOT")
 ```
 
 Note that the artifacts are not yet available on Maven Central (or similar repositories). Hence build the project manually first before declaring the dependencies on this artifact.
 
-### XML based configuration
+## Environment Variables
+
+### Set up local Environment Variable
+
+1. Create a Github Access Token with `repo` and `packages` permission.
+2. Create system environment variables called `GITHUB_ACTOR` and `GITHUB_TOKEN`. Set your github username as the `GITHUB_ACTOR` and the generated access token as `GITHUB_TOKEN`.
+
+## XML based configuration
 
 After the dependencies are available one must define a `MongoTemplate` as well as `MongoRepository` bean via Spring.
 
@@ -229,9 +265,9 @@ The `aclService` can then be used to inject an instance into some business logic
     </bean>
 ```
 
-### Java based configuration
+## Java based configuration
 
-The configuration via Java configuration isn't that differnt from the XML based configuration. 
+The configuration via Java configuration isn't that differnt from the XML based configuration.
 
 ```java
 @Configuration
