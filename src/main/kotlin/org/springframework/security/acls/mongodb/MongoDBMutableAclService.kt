@@ -39,7 +39,7 @@ import java.util.UUID
  * <p>
  * This implementation will map ACL related classes like {@link Acl}, {@link AccessControlEntry} and {@link Sid} to a
  * {@link MongoAcl} POJO class which is persisted or accessed via a MongoDB based aclRepository. This POJO will contain all
- * the ACL relevant data for a domain object in a non flat structure. Due to the non-flat structure lookups and updates
+ * the ACL relevant data for a domain object in a non-flat structure. Due to the non-flat structure lookups and updates
  * are relatively trivial compared to the SQL based {@link AclService} implementation.
  *
  * @author Ben Alex
@@ -59,7 +59,7 @@ class MongoDBMutableAclService(
 
         val availableAcl = aclRepository.findByInstanceIdAndClassName(objectIdentity.identifier, objectIdentity.type)
 
-        if (!availableAcl.isNullOrEmpty()) {
+        if (availableAcl.isNotEmpty()) {
             throw AlreadyExistsException("Object identity '$objectIdentity' already exists")
         }
 
@@ -103,7 +103,7 @@ class MongoDBMutableAclService(
         }
 
         val numRemoved = aclRepository.deleteByInstanceId(objectIdentity.identifier)
-        if (numRemoved == null || numRemoved < 1) {
+        if (numRemoved < 1) {
             // TODO: log warning that no ACL was found for the domain object
         }
 
@@ -122,9 +122,8 @@ class MongoDBMutableAclService(
 
         acl.entries.forEach { _ace ->
             val ace = _ace as AccessControlEntryImpl
-            var sid: MongoSid? = null
-            var aceId = ace.id as? String ?: UUID.randomUUID().toString()
-            sid =
+            val aceId = ace.id as? String ?: UUID.randomUUID().toString()
+            val sid =
                 when (ace.sid) {
                     is PrincipalSid -> {
                         val principal = ace.sid as PrincipalSid

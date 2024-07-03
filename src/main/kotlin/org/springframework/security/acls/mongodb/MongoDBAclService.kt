@@ -60,9 +60,14 @@ open class MongoDBAclService(
             aclRepository.findByInstanceIdAndClassName(
                 parentIdentity.identifier,
                 parentIdentity.type,
-            ) ?: return null
+            )
+
+        if (aclsForDomainObject.isEmpty()) {
+            return null
+        }
 
         val children = LinkedHashSet<MongoAcl>()
+        // find children for each found ACL entity
         aclsForDomainObject.forEach { acl ->
             children.addAll(aclRepository.findByParentId(acl.id!!))
         }
@@ -101,6 +106,7 @@ open class MongoDBAclService(
     ): Map<ObjectIdentity, Acl> {
         val result = lookupStrategy.readAclsById(objects, sids)
 
+        // Check every requested object identity was found (throw NotFoundException if needed)
         objects.forEach { oid ->
             result[oid] ?: throw NotFoundException(
                 "Unable to find ACL information for object identity '$oid'",

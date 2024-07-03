@@ -55,9 +55,23 @@ import java.io.Serializable
  * @since 4.3
  */
 class MongoDBBasicLookupStrategy(
+    /**
+     * Spring template for interacting with a MongoDB database
+     **/
     private val mongoTemplate: MongoTemplate,
+    /**
+     * Used to avoid further database lookups for already retrieved Acl instances
+     **/
     private val aclCache: AclCache,
+    /**
+     * A Spring Security authorization strategy passed to the generated Acl implementation once the data are loaded from
+     * the database. This strategy checks whether existing permission entries for users may be removed or new ones added.
+     */
     private val aclAuthorizationStrategy: AclAuthorizationStrategy,
+    /**
+     * This strategy implementation will be injected into the generated Spring Security Acl class after retrieving the
+     * data from the database
+     **/
     private val grantingStrategy: PermissionGrantingStrategy,
 ) : LookupStrategy {
     /**
@@ -109,10 +123,10 @@ class MongoDBBasicLookupStrategy(
 
                 // Ensure any cached element supports all the requested SIDs
                 // (they should always, as our base impl doesn't filter on SID)
-                if (acl != null) {
-                    if (acl.isSidLoaded(sids)) {
-                        if (definesAccessPermissionsForSids(acl, sids)) {
-                            result[oid] = acl
+                acl?.let {
+                    if (it.isSidLoaded(sids)) {
+                        if (definesAccessPermissionsForSids(it, sids)) {
+                            result[it.objectIdentity] = it
                             aclFound = true
                         }
                     } else {
@@ -188,8 +202,10 @@ class MongoDBBasicLookupStrategy(
                 } catch (cnfEx: ClassNotFoundException) {
                     null // TODO: add exception logging
                 }
-            if (acl != null && definesAccessPermissionsForSids(acl, sids)) {
-                resultMap[acl.objectIdentity] = acl
+            acl?.let {
+                if (definesAccessPermissionsForSids(it, sids)) {
+                    resultMap[it.objectIdentity] = it
+                }
             }
         }
 
@@ -198,6 +214,12 @@ class MongoDBBasicLookupStrategy(
 
     /**
      * Converts the internal MongoDB representation to a Spring Security ACL instance.
+     *
+     * @param mongoAcl  The internal MongoDB based data model to convert to a Spring Security ACL one
+     * @param foundAcls A list of already fetched MongoDB based data model instances
+     * @return The converted Spring Security ACL instance filled with values taken from the MongoDB based data model
+     * @throws ClassNotFoundException If no class representation could be found for the domain object the ACL is referring
+     *                                to
      */
     @Throws(ClassNotFoundException::class)
     private fun convertToAcl(
@@ -205,20 +227,29 @@ class MongoDBBasicLookupStrategy(
         foundAcls: MutableList<MongoAcl>,
     ): Acl? {
         var parent: Acl? = null
-        if (mongoAcl.parentId != null) {
-            var parentAcl = foundAcls.find { it.id == mongoAcl.parentId }
-            // if the parent ACL was not loaded already, try to find it via its id
-            if (parentAcl == null) {
-                mongoAcl.parentId?.let { parentId ->
-                    parentAcl = mongoTemplate.findById(parentId as Any, MongoAcl::class.java)
+        mongoAcl.parentId?.let { parentId ->
+            // First attempt to find the parent ACL from the already loaded ACLs
+            val parentAcl =
+                foundAcls.find { it.id == parentId }
+                    ?: mongoTemplate.findById(parentId, MongoAcl::class.java) // Try to load it from the database if not found
+
+            parentAcl?.let { acl ->
+                // Check if the found or loaded ACL is already in the found list, if not add it
+                if (!foundAcls.contains(acl)) {
+                    foundAcls.add(acl)
                 }
-                if (parentAcl != null && parentAcl !in foundAcls) {
-                    foundAcls.add(parentAcl!!)
-                }
+
+                // Attempt to retrieve a cached version of the parent ACL
+                parent = aclCache.getFromCache(ObjectIdentityImpl(acl.className, acl.instanceId))
+                    ?: convertToAcl(acl, foundAcls).also { newAcl ->
+                        aclCache.putInCache(newAcl as MutableAcl)
+                    }
+            } ?: run {
+                // Log warning that no parent could be found
+                // TODO: Implement logging here
             }
-            parent = aclCache.getFromCache(ObjectIdentityImpl(parentAcl?.className, parentAcl?.instanceId))
-                ?: parentAcl?.let { convertToAcl(it, foundAcls)?.also { acl -> aclCache.putInCache(acl as MutableAcl) } }
         }
+
         val objectIdentity = ObjectIdentityImpl(Class.forName(mongoAcl.className), mongoAcl.instanceId)
         val owner =
             if (mongoAcl.owner!!.isPrincipal) {
@@ -272,13 +303,25 @@ class MongoDBBasicLookupStrategy(
 
     /**
      * Checks whether a fetched ACL specifies any of the {@link Sid Sids} passed in.
+     * <p>
+     * This implementation will first check if the owner of the domain object is contained in the list and if not check if
+     * any of the defined permissions are targeted at a security identity defined in the given list. In case a parent ACL
+     * is defined, this implementation will also try to determine whether the owner of an ancestor ACL is found in the
+     * given list or any of the permissions defined by an ancestor does contain identities available in the provided list.
+     *
+     * @param acl  The {@link Acl} instance to check whether it defines at least one of the identities provided
+     * @param sids A list of security identities the ACL should be checked against whether it defines at least one of
+     *             these
+     * @return <em>true</em> if the given ACL specifies at least one security identity available within the given list of
+     * identities. <em>false</em> if none of the passed in security identities could be found in either the provided ACL
+     * or any of its ancestor permissions
      */
     private fun definesAccessPermissionsForSids(
         acl: Acl,
         sids: List<Sid>?,
     ): Boolean {
         // check whether the list of sids is a match-all list or if the owner is found within the list
-        if (sids == null || sids.isEmpty() || acl.owner in sids) {
+        if (sids.isNullOrEmpty() || acl.owner in sids) {
             return true
         }
         // check the contained permissions for permissions granted to a certain user available in the provided list of sids
@@ -287,7 +330,11 @@ class MongoDBBasicLookupStrategy(
         }
         // check if a parent reference is available and inheritance is enabled
         return if (acl.parentAcl != null && acl.isEntriesInheriting) {
-            definesAccessPermissionsForSids(acl.parentAcl, sids) || hasPermissionsForSids(acl.parentAcl, sids)
+            return if (definesAccessPermissionsForSids(acl.parentAcl, sids)) {
+                true
+            } else {
+                hasPermissionsForSids(acl.parentAcl, sids)
+            }
         } else {
             false
         }
@@ -295,6 +342,14 @@ class MongoDBBasicLookupStrategy(
 
     /**
      * Checks whether the provided ACL contains permissions issued for any of the given security identities.
+     *
+     * @param acl  The {@link Acl} instance to check whether it contains permissions issued for any of the provided
+     *             security identities
+     * @param sids A list of security identities the Acl instance should be checked against if it defines permissions for
+     *             any of the contained identities
+     * @return <em>true</em> if the ACL defines at least one permission for a security identity available within the given
+     * list of security identities. <em>false</em> if none of the permissions specified in the given Acl does define
+     * access rules for any identity available in the list of security entities passed in
      */
     private fun hasPermissionsForSids(
         acl: Acl,

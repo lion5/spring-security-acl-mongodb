@@ -17,6 +17,7 @@ package org.springframework.security.acls.mongodb
 
 import com.mongodb.client.MongoClients
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.testcontainers.context.ImportTestcontainers
@@ -55,11 +56,17 @@ import org.testcontainers.containers.MongoDBContainer
 import java.net.UnknownHostException
 import java.util.UUID
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
+/**
+ * @author Roman Vottner
+ * @author Soumik Kumar Saha
+ * @since 4.3
+ */
 @ExtendWith(SpringExtension::class)
 @ContextConfiguration(classes = [MongoDBMutableAclServiceTest.ContextConfig::class])
 class MongoDBMutableAclServiceTest {
@@ -129,16 +136,16 @@ class MongoDBMutableAclServiceTest {
     fun testCreateAcl() {
         // Arrange
         val domainObject = TestDomainObject()
-        val objectIdentity = ObjectIdentityImpl(domainObject::class.java.name, domainObject.getId())
 
         // Act
+        val objectIdentity = ObjectIdentityImpl(domainObject::class.java.name, domainObject.getId())
         val acl = aclService.createAcl(objectIdentity)
 
         // Assert
         assertNotNull(acl)
-        assertTrue(acl.objectIdentity.identifier == domainObject.getId())
-        assertTrue(acl.objectIdentity.type == domainObject::class.java.name)
-        assertTrue(acl.owner == PrincipalSid(SecurityContextHolder.getContext().authentication.name))
+        assertEquals(acl.objectIdentity.identifier, domainObject.getId())
+        assertEquals(acl.objectIdentity.type, domainObject::class.java.name)
+        assertEquals(acl.owner, PrincipalSid(SecurityContextHolder.getContext().authentication.name))
     }
 
     @Test
@@ -187,6 +194,7 @@ class MongoDBMutableAclServiceTest {
         val unrelatedObject = TestDomainObject()
 
         val objectIdentity = ObjectIdentityImpl(domainObject::class.java.name, domainObject.getId())
+
         val parent = MongoAcl(domainObject.getId(), domainObject::class.java.name, UUID.randomUUID().toString())
         val child1 =
             MongoAcl(firstObject.getId(), firstObject::class.java.name, UUID.randomUUID().toString(), MongoSid("Tim Test"), parent.id, true)
@@ -223,6 +231,7 @@ class MongoDBMutableAclServiceTest {
         parent.permissions.add(permission)
         child1.permissions.add(permission)
         child2.permissions.add(permission)
+
         aclRepository.save(parent)
         aclRepository.save(child1)
         aclRepository.save(child2)
@@ -237,7 +246,7 @@ class MongoDBMutableAclServiceTest {
         assertNull(afterDelete)
         val remaining = aclRepository.findAll()
         assertTrue(remaining.size == 1)
-        assertTrue(remaining[0].id == nonChild.id)
+        assertEquals(remaining[0].id, nonChild.id)
     }
 
     @Test
@@ -251,6 +260,7 @@ class MongoDBMutableAclServiceTest {
         val unrelatedObject = TestDomainObject()
 
         val objectIdentity = ObjectIdentityImpl(domainObject::class.java.name, domainObject.getId())
+
         val parent = MongoAcl(domainObject.getId(), domainObject::class.java.name, UUID.randomUUID().toString())
         val child1 =
             MongoAcl(firstObject.getId(), firstObject::class.java.name, UUID.randomUUID().toString(), MongoSid("Tim Test"), parent.id, true)
@@ -287,6 +297,7 @@ class MongoDBMutableAclServiceTest {
         parent.permissions.add(permission)
         child1.permissions.add(permission)
         child2.permissions.add(permission)
+
         aclRepository.save(parent)
         aclRepository.save(child1)
         aclRepository.save(child2)
@@ -297,8 +308,8 @@ class MongoDBMutableAclServiceTest {
         try {
             aclService.deleteAcl(objectIdentity, false)
             fail("Should have thrown an exception as removing a parent ACL is not allowed")
-        } catch (ex: ChildrenExistException) {
-            assertNotNull(ex)
+        } catch (ex: Exception) {
+            assertThrows<ChildrenExistException> { throw ex }
         }
     }
 
@@ -338,10 +349,10 @@ class MongoDBMutableAclServiceTest {
         // Assert
         val updated = aclRepository.findById(mongoAcl.id!!).orElse(null)
         assertNotNull(updated)
-        assertTrue(updated!!.permissions.size == 2)
-        assertTrue(updated.permissions[0].getId() == permission.getId())
-        assertTrue(updated.permissions[1].getPermission() == BasePermission.ADMINISTRATION.mask)
-        assertTrue(updated.permissions[1].getSid().name == "Sam Sample")
+        assertEquals(2, updated.permissions.size)
+        assertEquals(updated.permissions[0].getId(), permission.getId())
+        assertEquals(updated.permissions[1].getPermission(), BasePermission.ADMINISTRATION.mask)
+        assertEquals("Sam Sample", updated.permissions[1].getSid().name)
         assertTrue(updated.permissions[1].getSid().isPrincipal)
     }
 }

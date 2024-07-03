@@ -33,11 +33,33 @@ import java.io.Serializable
  * @since 4.3
  */
 class DomainObjectPermission(
+    /**
+     * The unique identifier of this permission instance
+     **/
     private val id: Serializable?,
+    /**
+     * The security identity the permission is created for
+     **/
     private val sid: MongoSid,
+    /**
+     * A bit-mask containing the relevant access permission for the user referenced by {@link #sid}.
+     **/
     private var permission: Int,
+    /**
+     * Defines whether this permission is specifying granting permissions or denying permissions to a domain object. In
+     * case this field is set to false a write permission defined in {@link #permission} will read like deny writes by
+     * the user identified by the <em>sid</em> for the respective domain object
+     **/
     private val granting: Boolean,
+    /**
+     * Defines whether denied access to certain resources should be logged or not. If set to true any security related
+     * issues will be logged
+     **/
     private var auditSuccess: Boolean,
+    /**
+     * Defines whether successful access to certain resources should be logged. If set to true any successful access
+     * will be logged
+     */
     private var auditFailure: Boolean,
 ) {
     init {

@@ -42,18 +42,6 @@ interface AclRepository : MongoRepository<MongoAcl, Serializable> {
     ): List<MongoAcl>
 
     /**
-     * Returns the ACL for a given domain object identifier and its class name.
-     *
-     * @param instanceId The unique identifier of the domain object the ACL should be returned for
-     * @param className  The class name of the domain object referenced by the ACL
-     * @return The access control list for the matching domain object.
-     */
-    fun findByInstanceIdAndClassNameContaining(
-        instanceId: Serializable,
-        className: String,
-    ): List<MongoAcl>
-
-    /**
      * Retrieves all child ACLs which specified the given <em>parentId</em> as their parent.
      *
      * @param parentId The unique identifier of the parent ACL

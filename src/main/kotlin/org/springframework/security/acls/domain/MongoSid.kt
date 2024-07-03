@@ -21,13 +21,18 @@ package org.springframework.security.acls.domain
  * authenticated user, otherwise an instance of this class will represent a granted authority.
  *
  * @author Roman Vottner
+ * @author Soumik Kumar Saha
  * @since 4.3
  */
-class MongoSid
-    @JvmOverloads
-    constructor(
-        var name: String = "",
-        var isPrincipal: Boolean = true,
-    ) {
-        override fun toString(): String = "MongoSid[name = $name, isPrincipal = $isPrincipal]"
-    }
+class MongoSid(
+    /**
+     * The name of the security identity
+     **/
+    var name: String,
+    /**
+     * Defines whether this security identity is a user principal (true) or a granted authority (false)
+     **/
+    var isPrincipal: Boolean = true,
+) {
+    override fun toString(): String = "MongoSid[name = $name, isPrincipal = $isPrincipal]"
+}
