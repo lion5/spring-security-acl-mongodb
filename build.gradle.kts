@@ -6,7 +6,7 @@ plugins {
     id("com.diffplug.spotless") version "6.25.0"
     kotlin("jvm") version "1.9.24"
     kotlin("plugin.spring") version "1.9.24"
-    id("maven-publish") // Apply Maven Publish Plugin
+    id("maven-publish")
 }
 
 group = "org.springframework"
@@ -64,12 +64,15 @@ publishing {
         }
     }
     repositories {
-        mavenLocal() // Use mavenLocal to publish directly to the local Maven repository
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/lion5/spring-security-acl-mongodb")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
     }
-}
-
-tasks.named("publishToMavenLocal").configure {
-    dependsOn("build")
 }
 
 // Disable the bootJar task since this is a library
