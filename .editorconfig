@@ -1,0 +1,13 @@
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+indent_size = 4
+indent_style = space
+trim_trailing_whitespace = true
+
+
+[*.{yaml,yml,js,jsx,ts,tsx,vue,json,md,html,css,scss,sass,tf}]
+indent_size = 2

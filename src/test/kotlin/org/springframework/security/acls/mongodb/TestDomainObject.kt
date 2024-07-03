@@ -13,26 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.security.acls.mongodb;
+package org.springframework.security.acls.mongodb
 
-import java.util.UUID;
+import java.util.UUID
 
 /**
  * Simple domain object used for testing ACLs.
  *
  * @author Roman Vottner
+ * @author Soumik Kumar Saha
  * @since 4.3
  */
 class TestDomainObject {
+    private val id: String = UUID.randomUUID().toString()
 
-	private final String id = UUID.randomUUID().toString();
-
-	/**
-	 * Returns the unique ID in the form of a UUID v4.
-	 *
-	 * @return the unique ID of this object
-	 */
-	String getId() {
-		return this.id;
-	}
+    /**
+     * Returns the unique ID in the form of a UUID v4.
+     *
+     * @return the unique ID of this object
+     */
+    fun getId(): String = id
 }
