@@ -90,7 +90,7 @@ In order to make use of the MongoDB based ACL one has to declare its dependency 
 <dependency>
     <groupId>org.springframework.security</groupId>
     <artifactId>spring-security-acl-mongodb</artifactId>
-    <version>4.2.3-SNAPSHOT</version>
+    <version>0.0.1-SNAPSHOT</version>
 </dependency>
 ```
 `settings.xml`
@@ -294,7 +294,7 @@ public class ContextConfig {
 
     @Bean
     public LookupStrategy lookupStrategy() throws UnknownHostException {
-        return new BasicLookupStrategy(mongoTemplate(), aclCache(), aclAuthorizationStrategy(), permissionGrantingStrategy());
+        return new MongoDBBasicLookupStrategy(mongoTemplate(), aclCache(), aclAuthorizationStrategy(), permissionGrantingStrategy());
     }
 
     @Bean
