@@ -9,13 +9,14 @@ plugins {
     id("maven-publish")
 }
 
-group = "org.springframework"
-version = "0.0.1-SNAPSHOT"
+group = "io.lion5"
+version = "0.0.2"
 
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+    withSourcesJar()
 }
 
 repositories {
@@ -45,11 +46,10 @@ kotlin {
 
 spotless {
     kotlin {
-        ktfmt("0.50").kotlinlangStyle()
-        ktlint("1.3.0").setEditorConfigPath("$projectDir/.editorconfig")
+        ktlint("1.5.0").setEditorConfigPath("$projectDir/.editorconfig")
     }
     kotlinGradle {
-        ktlint("1.3.0")
+        ktlint("1.5.0")
     }
 }
 
